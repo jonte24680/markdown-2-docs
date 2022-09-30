@@ -10,14 +10,14 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:markdown-2-docs.helloWorld"
+    "onCommand:markdown-2-docs.toDocs"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "markdown-2-docs.helloWorld",
-        "title": "Markdown 2 Docs: Hello World"
+        "command": "markdown-2-docs.toDocs",
+        "title": "Markdown 2 Docs: To Docs"
       }
     ]
   },
