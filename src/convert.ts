@@ -1,4 +1,5 @@
 import { google, docs_v1, Auth, Common } from "googleapis";
+import * as mdHelper from "./mdHelper";
 
 export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Request[]{	
 	function isNewLineChar(index: number = pointer){
@@ -10,6 +11,15 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 		}
 		return 0;
 	}
+
+	function isEmptyLine(index: number = pointer){
+		const length = charRepeatLenght("", true, index).indexDelta();
+		const endCharacters = isNewLineChar(index + length);
+		if(endCharacters === 0){
+			return 0;
+		}
+		return length + endCharacters;
+	}
 	
 	function charRepeatLenght(char: string, ignoreSpces: boolean = false, startIndex: number = pointer){
 		const ret = { 
@@ -20,11 +30,16 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 			indexDelta: () => ret.char + ret.spaces + ret.tabs
 		};
 		while(true){
-			if(markdown[startIndex + ret.char + ret.spaces + ret.tabs] === char){
+			const currentIndex = startIndex + ret.indexDelta();
+			if (currentIndex === docsLength){
+				return ret;
+			}
+
+			if(markdown[currentIndex] === char){
 				ret.char++;
-			} else if (ignoreSpces && markdown[startIndex + ret.char + ret.spaces + ret.tabs] === " "){
+			} else if (ignoreSpces && markdown[currentIndex] === " "){
 				ret.spaces++;
-			} else if (ignoreSpces && markdown[startIndex + ret.char + ret.spaces + ret.tabs] === "\t"){
+			} else if (ignoreSpces && markdown[currentIndex] === "\t"){
 				ret.tabs++;
 			} else {
 				return ret;
@@ -32,9 +47,8 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 		}
 	}
 
-	function nextLinePoint(startIndex: number = pointer){
-		const textLenght = markdown.length;
-		while(startIndex < textLenght){
+	function nextLine(startIndex: number = pointer){
+		while(startIndex < docsLength){
 			const lines = isNewLineChar(startIndex);
 			if(lines !== 0){
 				return startIndex + lines;
@@ -44,14 +58,42 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 		return -1;
 	}
 
+	function lineStart(index: number = pointer){
+		while(0 < index){
+			if(isNewLineChar(index - 1) === 1){
+				return index;
+			}
+			index--
+		}
+		return 0
+	}
+
+//	function previusLinePoint(startIndex: number = pointer){
+//		while(startIndex > 0){
+//
+//		}
+//		return -1
+//	}
+
+	function getTextInLine(index: number = pointer){
+		index = lineStart(index);
+		var offset = 0;
+		while(index + offset < docsLength){
+			if(isNewLineChar(index + offset) !== 0){
+				break;
+			}
+			offset++;
+		}
+		return markdown.slice(index, index + offset);
+	}
+
 	function nextEnterSeperator(startIndex: number = pointer){
-		const textLenght = markdown.length;
-		while(startIndex < textLenght){
+		while(startIndex < docsLength){
 			const lines = isNewLineChar(startIndex);
-			if(lines !== 0 && startIndex + lines < textLenght){
+			if(lines !== 0 && startIndex + lines < docsLength){
 				startIndex += lines;
 				const repete = charRepeatLenght("", true, startIndex);
-				if(startIndex + repete.spaces < textLenght){
+				if(startIndex + repete.spaces < docsLength){
 					startIndex += repete.spaces;
 				}
 				
@@ -81,36 +123,123 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 		return {ret: false, amount: 0, nextLine: lastIndex};
 	}
 
-	
+	function getBlock(startIndex: number = pointer){
+		const ret = {
+			endindex: -1
+		};
+	}
+
+	const mdBlock = {
+		indentedCodeBlock: (startline: number) => {
+
+		},
+
+		indentedCodeBlockContinue: (startline: number) => {
+
+		},
+	};
 
 	var req = new Array<docs_v1.Schema$Request>();
-	var pointer = 0;
-	var startLine = 0;
-	var boldStart = -1;
-	var italicStart = -1;
-	var titleStart = -1;
-	var titleType = 0;
+	const docsLength = markdown.length;
+	let pointer = 0;
+	let startLine = 0;
+	let boldStart = -1;
+	let italicStart = -1;
+	let titleStart = -1;
+	let titleType = 0;
 
-	while (pointer < markdown.length){
-		const spaces = charRepeatLenght(" ").char;
-		if(startLine === pointer && spaces <= 3 ){
-			pointer += spaces;
 
-			const equelTitle = charOwnLineInSection("=");
-			if(equelTitle.ret){
-				//h1 titel
+	/*
+	todo: 
+	
+    Thematic breaks
+    ATX headings
+    Setext headings
+    ✅Indented code blocks
+    Fenced code blocks
+    🚫HTML blocks
+    Link reference definitions
+    Paragraphs
+
+    Block quotes
+    List items
+    Lists
+	
+    Code spans
+    Emphasis and strong emphasis
+    Links
+    Images
+    Autolinks
+    🚫Raw HTML
+    Hard line breaks
+    Soft line breaks
+    Textual content
+
+	*/
+	while (true){
+		const newLines = isEmptyLine();
+		if(newLines === 0){
+			break;
+		}
+		pointer += newLines;
+	}
+
+	while (pointer < docsLength){
+		const spaces = charRepeatLenght("");
+
+		if(startLine === docsLength){
+
+			if(false){ // list
+
 			}
 
-			const hyphenTitle = charOwnLineInSection("-");
-			if(hyphenTitle.ret){
-				//h2 titel§
-			}
+			if(spaces.totalSpace() > 3 &&  true && true){ // not a paragraf in fron and not a list
+				let text = getTextInLine();
+				text = mdHelper.IndentedCodeBlock.whitespaceRemove(text);
 
-			const titleHashtags = charRepeatLenght("#");
-			if(0 < titleHashtags.char && titleHashtags.char <= 6){
-				const spaces = charRepeatLenght("", true);
-				if (0 < spaces.indexDelta() || 0 < isNewLineChar(pointer+titleHashtags.char+spaces.spaces)){
-					//det sak var titel
+				let i = pointer;
+				while(i < docsLength && true){ // somthin with i;
+					i = nextLine(i);
+
+					if( isEmptyLine(i) < 0){
+						text += "/n";
+
+						continue;
+					}
+
+					const spaces = charRepeatLenght("");
+					if(spaces.totalSpace() > 3 && true) { // not a list
+						let newText = getTextInLine(i);
+						text += "/n" + mdHelper.IndentedCodeBlock.whitespaceRemove(newText);
+
+						continue;
+					}
+					break;
+				}
+				text.trimEnd();
+
+				//add text to document;
+			}
+			
+			if(spaces.totalSpace() <= 3 ) {
+				pointer += spaces.indexDelta();
+	
+				const equelTitle = charOwnLineInSection("=");
+				if(equelTitle.ret){
+					//h1 titel
+				}
+	
+				const hyphenTitle = charOwnLineInSection("-");
+				if(hyphenTitle.ret){
+					//h2 titel§
+				}
+	
+				const titleHashtags = charRepeatLenght("#");
+				if(0 < titleHashtags.char && titleHashtags.char <= 6){
+					const spaces = charRepeatLenght("", true);
+					if (0 < spaces.indexDelta() || 0 < isNewLineChar(pointer+titleHashtags.char+spaces.spaces)){
+						//det sak var titel
+					}
 				}
 			}
 		}
