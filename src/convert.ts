@@ -63,9 +63,9 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 			if(isNewLineChar(index - 1) === 1){
 				return index;
 			}
-			index--
+			index--;
 		}
-		return 0
+		return 0;
 	}
 
 //	function previusLinePoint(startIndex: number = pointer){
