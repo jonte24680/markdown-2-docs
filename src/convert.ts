@@ -219,6 +219,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 				text.trimEnd();
 				pointer = nextLine(i);
 				// TODO: add text to document;
+				continue;
 			}
 			
 			if(spaces.totalSpace() <= 3 ) {
@@ -262,6 +263,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					pointer = nextLine(i);
 
 					// TODO: add text to document
+					continue;
 				}
 
 
