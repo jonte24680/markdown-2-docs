@@ -150,13 +150,13 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 
 
 	/*
-	todo: 
-	
+	TODO: ✅🚧 
+
     Thematic breaks
     ATX headings
     Setext headings
     ✅Indented code blocks
-    Fenced code blocks
+    ✅Fenced code blocks
     🚫HTML blocks
     Link reference definitions
     Paragraphs
@@ -193,7 +193,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 
 			}
 
-			if(spaces.totalSpace() > 3 &&  true && true){ // not a paragraf in fron and not a list
+			if(spaces.totalSpace() > 3 &&  true && true){ // FIXME: not a paragraf in fron and not a list
 				let text = getTextInLine();
 				text = mdHelper.IndentedCodeBlock.whitespaceRemove(text);
 
@@ -208,7 +208,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					}
 
 					const spaces = charRepeatLenght("");
-					if(spaces.totalSpace() > 3 && true) { // not a list
+					if(spaces.totalSpace() > 3 && true) { // FIXME: not a list
 						let newText = getTextInLine(i);
 						text += "/n" + mdHelper.IndentedCodeBlock.whitespaceRemove(newText);
 
@@ -217,13 +217,54 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					break;
 				}
 				text.trimEnd();
-
-				//add text to document;
+				pointer = nextLine(i);
+				// TODO: add text to document;
 			}
 			
 			if(spaces.totalSpace() <= 3 ) {
 				pointer += spaces.indexDelta();
-	
+				
+				const fencedCodeblock = {
+					char: "",
+					amount: 0,
+					spaces: 0
+				};
+				const repetedBacksticks = charRepeatLenght("`");
+				if(3 <= repetedBacksticks.char){
+					fencedCodeblock.char = "`";
+					fencedCodeblock.amount = repetedBacksticks.char;
+					fencedCodeblock.spaces = spaces.totalSpace();
+				}
+				const repetedTildes = charRepeatLenght("~");
+				if(3 <= repetedTildes.char){
+					fencedCodeblock.char = "~";
+					fencedCodeblock.amount = repetedTildes.char;
+					fencedCodeblock.spaces = spaces.totalSpace();
+				}
+				if(fencedCodeblock.char !== ""){
+					let text = "";
+					let i = pointer;
+					while (i < docsLength){
+						const spaces = charRepeatLenght("", true);
+						if(spaces.totalSpace() <= 3){
+							const repeatEndChar = charRepeatLenght(fencedCodeblock.char); 
+							if(fencedCodeblock.amount <= repeatEndChar.char && isEmptyLine(i + spaces.indexDelta() + repeatEndChar.char) !== 0){
+								break;
+							}
+						}
+
+						let skipSpace = spaces.indexDelta() <= fencedCodeblock.spaces ? spaces.indexDelta() : fencedCodeblock.spaces;
+						text += getTextInLine(i).slice(skipSpace) + "\n";
+						i = nextLine(i);
+					}
+
+					text.trimEnd();
+					pointer = nextLine(i);
+
+					// TODO: add text to document
+				}
+
+
 				const equelTitle = charOwnLineInSection("=");
 				if(equelTitle.ret){
 					//h1 titel
