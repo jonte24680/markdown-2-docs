@@ -153,7 +153,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 	TODO: ✅🚧 
 
     Thematic breaks
-    ATX headings
+    ✅ATX headings
     Setext headings
     ✅Indented code blocks
     ✅Fenced code blocks
@@ -218,7 +218,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 				}
 				text.trimEnd();
 				pointer = nextLine(i);
-				// TODO: add text to document;
+				// TODO: add indented codeblock to document;
 				continue;
 			}
 			
@@ -262,7 +262,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					text.trimEnd();
 					pointer = nextLine(i);
 
-					// TODO: add text to document
+					// TODO: add fenced codeblock to document
 					continue;
 				}
 
@@ -279,9 +279,32 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 	
 				const titleHashtags = charRepeatLenght("#");
 				if(0 < titleHashtags.char && titleHashtags.char <= 6){
-					const spaces = charRepeatLenght("", true);
-					if (0 < spaces.indexDelta() || 0 < isNewLineChar(pointer+titleHashtags.char+spaces.spaces)){
+					const afterSpaces = charRepeatLenght("", true);
+					if (0 < spaces.indexDelta() || 0 < isNewLineChar(pointer + titleHashtags.char + spaces.indexDelta())){
 						//det sak var titel
+						let text = getTextInLine(pointer).slice(pointer + spaces.indexDelta() + titleHashtags.char + afterSpaces.indexDelta());
+						text = text.trimEnd();
+
+						let i = text.length - 1;
+
+						let hashTagRemove = 0;
+						while (0 <= i){
+							if(text[i] === "#"){
+								hashTagRemove++;
+								i--;
+								continue;
+							}
+							break;
+						}
+
+						if(0 <= i){
+							if(text[i] === " " || text[i] === "\t"){
+								text = text.slice(0, text.length - hashTagRemove).trimEnd();
+							} else {
+								text = text.slice(0, text.length);
+							}
+						}
+						// TODO: add title to document
 					}
 				}
 			}
