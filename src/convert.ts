@@ -23,11 +23,11 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 	
 	function charRepeatLenght(char: string, ignoreSpces: boolean = false, startIndex: number = pointer){
 		const ret = { 
-			char: 0, 
+			chars: 0, 
 			spaces: 0, 
 			tabs: 0, 
 			totalSpace: () => ret.tabs * 4 + ret.spaces, 
-			indexDelta: () => ret.char + ret.spaces + ret.tabs
+			indexDelta: () => ret.chars + ret.spaces + ret.tabs
 		};
 		while(true){
 			const currentIndex = startIndex + ret.indexDelta();
@@ -36,7 +36,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 			}
 
 			if(markdown[currentIndex] === char){
-				ret.char++;
+				ret.chars++;
 			} else if (ignoreSpces && markdown[currentIndex] === " "){
 				ret.spaces++;
 			} else if (ignoreSpces && markdown[currentIndex] === "\t"){
@@ -110,12 +110,12 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 			startIndex += spaces.indexDelta();
 			if(spaces.totalSpace() <= 3){
 				const charRepet = charRepeatLenght(repChar, false, startIndex);
-				startIndex += charRepet.char;
-				if(charRepet.char <= minRepAmount){
+				startIndex += charRepet.chars;
+				if(charRepet.chars <= minRepAmount){
 					const extraSpace = charRepeatLenght("", true, startIndex);
 					startIndex += extraSpace.indexDelta();
 					if(isNewLineChar(startIndex)){
-						return {ret: true, amount: charRepet.char, nextLine: startIndex + isNewLineChar(startIndex)};
+						return {ret: true, amount: charRepet.chars, nextLine: startIndex + isNewLineChar(startIndex)};
 					}
 				}
 			}
@@ -231,15 +231,15 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					spaces: 0
 				};
 				const repetedBacksticks = charRepeatLenght("`");
-				if(3 <= repetedBacksticks.char){
+				if(3 <= repetedBacksticks.chars){
 					fencedCodeblock.char = "`";
-					fencedCodeblock.amount = repetedBacksticks.char;
+					fencedCodeblock.amount = repetedBacksticks.chars;
 					fencedCodeblock.spaces = spaces.totalSpace();
 				}
 				const repetedTildes = charRepeatLenght("~");
-				if(3 <= repetedTildes.char){
+				if(3 <= repetedTildes.chars){
 					fencedCodeblock.char = "~";
-					fencedCodeblock.amount = repetedTildes.char;
+					fencedCodeblock.amount = repetedTildes.chars;
 					fencedCodeblock.spaces = spaces.totalSpace();
 				}
 				if(fencedCodeblock.char !== ""){
@@ -249,7 +249,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 						const spaces = charRepeatLenght("", true);
 						if(spaces.totalSpace() <= 3){
 							const repeatEndChar = charRepeatLenght(fencedCodeblock.char); 
-							if(fencedCodeblock.amount <= repeatEndChar.char && isEmptyLine(i + spaces.indexDelta() + repeatEndChar.char) !== 0){
+							if(fencedCodeblock.amount <= repeatEndChar.chars && isEmptyLine(i + spaces.indexDelta() + repeatEndChar.chars) !== 0){
 								break;
 							}
 						}
@@ -278,11 +278,11 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 				}
 	
 				const titleHashtags = charRepeatLenght("#");
-				if(0 < titleHashtags.char && titleHashtags.char <= 6){
+				if(0 < titleHashtags.chars && titleHashtags.chars <= 6){
 					const afterSpaces = charRepeatLenght("", true);
-					if (0 < spaces.indexDelta() || 0 < isNewLineChar(pointer + titleHashtags.char + spaces.indexDelta())){
+					if (0 < spaces.indexDelta() || 0 < isNewLineChar(pointer + titleHashtags.chars + spaces.indexDelta())){
 						//det sak var titel
-						let text = getTextInLine(pointer).slice(pointer + spaces.indexDelta() + titleHashtags.char + afterSpaces.indexDelta());
+						let text = getTextInLine(pointer).slice(pointer + spaces.indexDelta() + titleHashtags.chars + afterSpaces.indexDelta());
 						text = text.trimEnd();
 
 						let i = text.length - 1;
