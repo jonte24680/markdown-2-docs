@@ -123,6 +123,12 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 		return {ret: false, amount: 0, nextLine: lastIndex};
 	}
 
+	function paragrafFlush(){
+		if(paragrafText === ""){
+			return;
+		}
+	}
+
 	function getBlock(startIndex: number = pointer){
 		const ret = {
 			endindex: -1
@@ -143,10 +149,11 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 	const docsLength = markdown.length;
 	let pointer = 0;
 	let startLine = 0;
-	let boldStart = -1;
-	let italicStart = -1;
-	let titleStart = -1;
-	let titleType = 0;
+	let paragrafText = "";
+	// let boldStart = -1;
+	// let italicStart = -1;
+	// let titleStart = -1;
+	// let titleType = 0;
 
 
 	/*
@@ -187,14 +194,26 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 	while (pointer < docsLength){
 		const spaces = charRepeatLenght("");
 
-		if(startLine === docsLength){
+		if(startLine !== docsLength){
 
+			// Setaxt headders
+			const equelTitle = charOwnLineInSection("=");
+			if(equelTitle.ret){
+				//h1 titel
+			}
+
+			const hyphenTitle = charOwnLineInSection("-");
+			if(hyphenTitle.ret){
+				//h2 titel§
+			}
+
+			// thematic breaks
 			const thematicStar = charRepeatLenght("*", true, pointer + spaces.indexDelta());
 			const thematicDash = charRepeatLenght("-", true, pointer + spaces.indexDelta());
 			const thematicUnderScore = charRepeatLenght("_", true, pointer + spaces.indexDelta());
 
 			const maxThemticaChars = Math.max(thematicStar.chars, thematicDash.chars, thematicUnderScore.chars);
-			const indexDelta = spaces.indexDelta() + Math.max(thematicStar.indexDelta(), thematicDash.indexDelta(), thematicUnderScore. indexDelta())
+			const indexDelta = spaces.indexDelta() + Math.max(thematicStar.indexDelta(), thematicDash.indexDelta(), thematicUnderScore. indexDelta());
 			if(spaces.totalSpace() <= 3 && 3 <= maxThemticaChars && (docsLength <= pointer + indexDelta || 0 < isNewLineChar(pointer + indexDelta ))){
 				//TODO: add thematic breaks to document 
 			}
@@ -278,16 +297,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					continue;
 				}
 
-				// Setaxt headders
-				const equelTitle = charOwnLineInSection("=");
-				if(equelTitle.ret){
-					//h1 titel
-				}
-	
-				const hyphenTitle = charOwnLineInSection("-");
-				if(hyphenTitle.ret){
-					//h2 titel§
-				}
+				
 				
 				
 				// ATX Headders
