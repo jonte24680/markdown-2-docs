@@ -152,7 +152,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 	/*
 	TODO: ✅🚧 
 
-    Thematic breaks
+    ✅Thematic breaks
     ✅ATX headings
     Setext headings
     ✅Indented code blocks
@@ -189,10 +189,21 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 
 		if(startLine === docsLength){
 
+			const thematicStar = charRepeatLenght("*", true, pointer + spaces.indexDelta());
+			const thematicDash = charRepeatLenght("-", true, pointer + spaces.indexDelta());
+			const thematicUnderScore = charRepeatLenght("_", true, pointer + spaces.indexDelta());
+
+			const maxThemticaChars = Math.max(thematicStar.chars, thematicDash.chars, thematicUnderScore.chars);
+			const indexDelta = spaces.indexDelta() + Math.max(thematicStar.indexDelta(), thematicDash.indexDelta(), thematicUnderScore. indexDelta())
+			if(spaces.totalSpace() <= 3 && 3 <= maxThemticaChars && (docsLength <= pointer + indexDelta || 0 < isNewLineChar(pointer + indexDelta ))){
+				//TODO: add thematic breaks to document 
+			}
+
 			if(false){ // list
 
 			}
 
+			// indented codeblock
 			if(spaces.totalSpace() > 3 &&  true && true){ // FIXME: not a paragraf in fron and not a list
 				let text = getTextInLine();
 				text = mdHelper.IndentedCodeBlock.whitespaceRemove(text);
@@ -225,6 +236,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 			if(spaces.totalSpace() <= 3 ) {
 				pointer += spaces.indexDelta();
 				
+				// fenced codeblock
 				const fencedCodeblock = {
 					char: "",
 					amount: 0,
@@ -266,7 +278,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					continue;
 				}
 
-
+				// Setaxt headders
 				const equelTitle = charOwnLineInSection("=");
 				if(equelTitle.ret){
 					//h1 titel
@@ -276,7 +288,9 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 				if(hyphenTitle.ret){
 					//h2 titel§
 				}
-	
+				
+				
+				// ATX Headders
 				const titleHashtags = charRepeatLenght("#");
 				if(0 < titleHashtags.chars && titleHashtags.chars <= 6){
 					const afterSpaces = charRepeatLenght("", true);
