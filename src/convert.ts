@@ -127,23 +127,8 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 		if(paragrafText === ""){
 			return;
 		}
+		// TODO: impliment paragraf to document
 	}
-
-	function getBlock(startIndex: number = pointer){
-		const ret = {
-			endindex: -1
-		};
-	}
-
-	const mdBlock = {
-		indentedCodeBlock: (startline: number) => {
-
-		},
-
-		indentedCodeBlockContinue: (startline: number) => {
-
-		},
-	};
 
 	var req = new Array<docs_v1.Schema$Request>();
 	const docsLength = markdown.length;
@@ -161,12 +146,12 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 
     ✅Thematic breaks
     ✅ATX headings
-    Setext headings
+    ✅Setext headings
     ✅Indented code blocks
     ✅Fenced code blocks
     🚫HTML blocks
     Link reference definitions
-    Paragraphs
+    ✅Paragraphs
 
     Block quotes
     List items
@@ -197,14 +182,16 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 		if(startLine !== docsLength){
 
 			// Setaxt headders
-			const equelTitle = charOwnLineInSection("=");
-			if(equelTitle.ret){
-				//h1 titel
-			}
-
-			const hyphenTitle = charOwnLineInSection("-");
-			if(hyphenTitle.ret){
-				//h2 titel§
+			if(paragrafText !== ""){
+				const equelTitle = charOwnLineInSection("=");
+				if(equelTitle.ret){
+					// TODO: inpliment h1 titel
+				}
+	
+				const hyphenTitle = charOwnLineInSection("-");
+				if(hyphenTitle.ret){
+					// TODO: inpliment h2 titel§
+				}
 			}
 
 			// thematic breaks
@@ -223,7 +210,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 			}
 
 			// indented codeblock
-			if(spaces.totalSpace() > 3 &&  true && true){ // FIXME: not a paragraf in fron and not a list
+			if(spaces.totalSpace() > 3 && paragrafText !== "" && true){ // FIXME: not a paragraf in fron and not a list
 				let text = getTextInLine();
 				text = mdHelper.IndentedCodeBlock.whitespaceRemove(text);
 
@@ -334,12 +321,18 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 			}
 		}
 		
-		var newLines = isNewLineChar();
-		if(0 > newLines){
-			//add new line
-			pointer += newLines;
-			startLine = pointer;
+		if(paragrafText !== ""){
+			paragrafText += " ";
 		}
+		paragrafText += getTextInLine().trim();
+		pointer = nextLine();
+
+		// var newLines = isNewLineChar();
+		// if(0 > newLines){
+		// 	//add new line
+		// 	pointer += newLines;
+		// 	startLine = pointer;
+		// }
 	}
 
 	req.push({
