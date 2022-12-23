@@ -238,6 +238,27 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 				// TODO: add indented codeblock to document;
 				continue;
 			}
+
+			// block quotes
+			if(spaces.totalSpace() <= 3 && markdown[pointer + spaces.indexDelta()] === ">"){
+				let innerText = "";
+				while(true){
+					let text = getTextInLine();
+					if(spaces.totalSpace() <= 3 && markdown[pointer + spaces.indexDelta()] === ">"){
+						let removeChar = spaces.indexDelta() + 1;
+						removeChar += (text[removeChar] === " " ? 1 : 0);
+						innerText += text.slice(removeChar) + "\r\n";
+						continue;
+					}
+					if(markdownToGoogleDocsReq(text) === null){ // FIXME:  see if the last elemet is normal text (no headding or syntex)
+
+					} 
+					break;
+				}
+
+				markdownToGoogleDocsReq(innerText);
+				// TODO: impliment block quotes
+			}
 			
 			if(spaces.totalSpace() <= 3 ) {
 				pointer += spaces.indexDelta();
@@ -283,9 +304,6 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					// TODO: add fenced codeblock to document
 					continue;
 				}
-
-				
-				
 				
 				// ATX Headders
 				const titleHashtags = charRepeatLenght("#");
@@ -342,4 +360,8 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 		}
 	});
 	return req;
+}
+
+function inlineText(text: string): docs_v1.Schema$Request[]{
+	return [];
 }
