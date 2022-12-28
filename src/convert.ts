@@ -153,9 +153,9 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
     Link reference definitions
     ✅Paragraphs
 
-    Block quotes
-    List items
-    Lists
+    ✅Block quotes
+    ✅List items
+    ✅Lists
 	
     Code spans
     Emphasis and strong emphasis
@@ -205,8 +205,75 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 				//TODO: add thematic breaks to document 
 			}
 
-			if(false){ // list
+			// Bulletin list
+			const bulletListMarker = ["+", "-", "*"].find(x => markdown[pointer + spaces.indexDelta()]);
+			if(bulletListMarker !== undefined && spaces.totalSpace() < 4){
+				let indentation = spaces.indexDelta() + 1;
+				const afterSpaces = charRepeatLenght("", true, indentation);
 
+				if(afterSpaces.indexDelta() !== 0 || isEmptyLine(pointer + indentation)){
+					indentation += 1;
+					if(afterSpaces.totalSpace() <= 5){
+						indentation += afterSpaces.indexDelta() - 1;
+					}
+
+					let text = getTextInLine().slice(indentation) + "\n";
+					let index = pointer;
+					while (true){
+						index = nextLine(index);
+						if(isEmptyLine(index)){
+							text += "\n";
+							continue;
+						}
+
+						const spaces = charRepeatLenght("", true, index);
+						if(spaces.totalSpace() >= indentation){
+							text += getTextInLine(index).slice(indentation) + "\n";
+							continue;
+						}
+						break;
+					}
+					pointer = nextLine(index);
+					// TODO: add bullet list in document;
+					continue;
+				}
+			}
+
+			// orded list
+			const ordetRegex = new RegExp(/[1-9]{1,9}[\.\)]{1}/);
+			const text = getTextInLine();
+			const orded = ordetRegex.exec(text);
+			if(orded !== null && text.indexOf(orded[0]) === spaces.indexDelta() && spaces.totalSpace() < 4){
+				const ordedChar = orded[0][orded[0].length - 1];
+				let indentation = spaces.indexDelta() + 1;
+				const afterSpaces = charRepeatLenght("", true, indentation);
+
+				if(afterSpaces.indexDelta() !== 0 || isEmptyLine(pointer + indentation)){
+					indentation += 1;
+					if(afterSpaces.totalSpace() <= 5){
+						indentation += afterSpaces.indexDelta() - 1;
+					}
+
+					let text = getTextInLine().slice(indentation) + "\n";
+					let index = pointer;
+					while (true){
+						index = nextLine(index);
+						if(isEmptyLine(index)){
+							text += "\n";
+							continue;
+						}
+
+						const spaces = charRepeatLenght("", true, index);
+						if(spaces.totalSpace() >= indentation){
+							text += getTextInLine(index).slice(indentation) + "\n";
+							continue;
+						}
+						break;
+					}
+					pointer = nextLine(index);
+					// TODO: add orded list in document;
+					continue;
+				}
 			}
 
 			// indented codeblock
@@ -233,7 +300,6 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 					}
 					break;
 				}
-				text.trimEnd();
 				pointer = nextLine(i);
 				// TODO: add indented codeblock to document;
 				continue;
