@@ -1,5 +1,4 @@
 import { google, docs_v1, Auth, Common } from "googleapis";
-import { policyanalyzer } from "googleapis/build/src/apis/policyanalyzer";
 import * as mdHelper from "./mdHelper";
 
 export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Request[]{	
@@ -589,7 +588,7 @@ function bulletList({ markdown, pointer, paragraphBefore }: BlockArg): null | Bl
 			}
 			pointer = nextLine(markdown, index); //next pointer
 			// TODO: add bullet list in document;
-			continue;
+			//continue;
 		}
 	}
 	const ret = new BlockReturn();
@@ -632,7 +631,7 @@ function orderedList({ markdown, pointer, paragraphBefore }: BlockArg): null | B
 			}
 			pointer = nextLine(markdown, index);
 			// TODO: add orded list in document;
-			continue;
+			//continue;
 		}
 	}
 	const ret = new BlockReturn();
@@ -640,8 +639,73 @@ function orderedList({ markdown, pointer, paragraphBefore }: BlockArg): null | B
 	return null;
 }
 
-function inlineText(text: string): docs_v1.Schema$Request[]{
-	return [];
+function inlineText(text: string, indentation: number, headerType : number): docs_v1.Schema$Request[]{
+	// https://googleapis.dev/nodejs/googleapis/latest/docs/interfaces/Schema$InsertTextRequest.html 
+
+	//if()
+	const ret = new Array<docs_v1.Schema$Request>();
+	var paragrafStyle = inlineParagrafStyle(indentation, headerType);
+
+	var insertText: docs_v1.Schema$InsertTextRequest = {
+		text: text,
+		location: {
+			index: 0
+		}
+	};
+
+	paragrafStyle.range = {
+		startIndex: 0,
+		endIndex: text.length
+	};
+
+	ret.push({updateParagraphStyle: paragrafStyle}, {insertText: insertText});
+
+	return ret;
+
+	/*
+	if(false) { // autolink
+
+	}
+	if(false) { // code span
+
+	}
+
+	return ret;
+	*/
+}
+
+function inlineParagrafStyle(indentation: number, heading : number){
+	const ret: docs_v1.Schema$UpdateParagraphStyleRequest = {
+		fields: "namedStyleType indentStart",
+		paragraphStyle: {
+			indentStart: {
+				magnitude: indentation,
+				unit: "PT"
+			},
+			namedStyleType: "NORMAL_TEXT",
+		},
+	};
+	if(ret.paragraphStyle === undefined){ // maked TS happy. never going to happen.
+		return ret;
+	}
+		/* 
+		"NORMAL_TEXT"
+		"HEADING_1"
+		"HEADING_2"
+		"HEADING_3"
+		"HEADING_4"
+		"HEADING_5"
+		"HEADING_6"
+		"TITLE"
+		"SUBTITLE"
+	*/
+	if(heading === 1){
+		ret.paragraphStyle.namedStyleType = "TITLE";
+	}
+	if(heading > 1){
+		ret.paragraphStyle.namedStyleType = "HEADING_" + (heading - 1);
+	}
+	return ret;
 }
 
 //   _    _      _                     
