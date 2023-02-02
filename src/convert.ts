@@ -1,26 +1,56 @@
 import { google, docs_v1, Auth, Common } from "googleapis";
 import * as mdHelper from "./mdHelper";
 
-export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Request[]{	
-
-	function paragrafFlush(){
-		if(paragrafText === ""){
-			return;
-		}
-		// TODO: impliment paragraf to document
+class BlockArg {
+	constructor(markdown: string, pointer: number, paragraphBefore: string, reqIndex: number){
+		this._markdown = markdown;
+		this._pointer = pointer;
+		this._paragraphBefore = paragraphBefore;
+		this._reqIndex = reqIndex;
 	}
 
-	var req = new Array<docs_v1.Schema$Request>();
-	const docsLength = markdown.length;
-	let pointer = 0;
-	let startLine = 0;
-	let paragrafText = "";
-	// let boldStart = -1;
-	// let italicStart = -1;
-	// let titleStart = -1;
-	// let titleType = 0;
+	private _markdown: string;
+	get markdown (){
+		return this._markdown;
+	};
 
+	private _pointer: number;
+	get pointer (){
+		return this._pointer;
+	};
 
+	private _paragraphBefore: string;
+	get paragraphBefore (){
+		return this._paragraphBefore;
+	};
+
+	private _reqIndex: number;
+	get reqIndex (){
+		return this._reqIndex;
+	};
+}
+
+class BlockReturn {
+	request: docs_v1.Schema$Request[] = new Array<docs_v1.Schema$Request>();
+	nextPointer: number = -1;
+}
+
+class ContainerBlockReturn extends BlockReturn {
+	links: LinkRefrence[] = new Array<LinkRefrence>();
+}
+
+class LinkRefrence{
+	constructor(name: string, url: string, title: string){
+		this.name = name;
+		this.url = url;
+		this.title = title;
+	}
+	readonly name: string;
+	readonly url: string;
+	readonly title: string;
+}
+
+export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Request[]{	
 	/*
 	TODO: ✅🚧 
 
@@ -46,119 +76,154 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
     Hard line breaks
     Soft line breaks
     Textual content
-
 	*/
-	while (true){
-		const uslessSpaces = isEmptyLine(markdown, pointer);
-		if(uslessSpaces === 0){
-			break;
-		}
-		pointer += uslessSpaces;
-	}
+
+	var req = new Array<docs_v1.Schema$Request>();
+	var linkReferences = new Array<LinkRefrence>();
+	const docsLength = markdown.length;
+	let pointer = 0;
+	let requestIndex = 1;
+	let paragrafText = "";
 
 	while (pointer < docsLength){
-		const arg = new BlockArg(markdown, pointer, paragrafText);
+		if(pointer !== 0){
+			requestIndex = getLastRequestIndex(req);
+		}
+		const arg = new BlockArg(markdown, pointer, paragrafText, requestIndex);
 
 		const setext = setextHeading(arg); // FIXME: scoud no happe when its a list
 		if(setext !== null){
-			
+			paragrafText = "";
+			req = req.concat(setext.request);
+			pointer = setext.nextPointer;
 			continue;
 		}
 
 		const thematic = thematicBreak(arg); 
 		if(thematic !== null){
-			
+			const paraFlush = paragrafFlush(paragrafText, requestIndex);
+			req = req.concat(paraFlush);
+			paragrafText = "";
+
+			req = req.concat(addRequestIndex(thematic.request, paraFlush, requestIndex));
+			pointer = thematic.nextPointer;
 			continue;
 		}
 
 		const bullet = bulletList(arg);
 		if(bullet !== null){
-			
+			const paraFlush = paragrafFlush(paragrafText, requestIndex);
+			req = req.concat(paraFlush);
+			paragrafText = "";
+
+			req = req.concat(addRequestIndex(bullet.request, paraFlush, requestIndex));
+			linkReferences = linkReferences.concat(bullet.links);
+			pointer = bullet.nextPointer;
 			continue;
 		}
 
 		const ordered = orderedList(arg);
 		if(ordered !== null){
-			
+			const paraFlush = paragrafFlush(paragrafText, requestIndex);
+			req = req.concat(paraFlush);
+			paragrafText = "";
+
+			req = req.concat(addRequestIndex(ordered.request, paraFlush, requestIndex));
+			linkReferences = linkReferences.concat(ordered.links);
+			pointer = ordered.nextPointer;
 			continue;
 		}
 
 		const indented = indentedCodeBlock(arg);
 		if(indented !== null){
-			
+			const paraFlush = paragrafFlush(paragrafText, requestIndex);
+			req = req.concat(paraFlush);
+			paragrafText = "";
+
+			req = req.concat(addRequestIndex(indented.request, paraFlush, requestIndex));
+			pointer = indented.nextPointer;
 			continue;
 		}
 
 		const quote = blockQuote(arg, arg.markdown, arg.pointer, 0);
 		if(quote !== null){
-			
+			const paraFlush = paragrafFlush(paragrafText, requestIndex);
+			req = req.concat(paraFlush);
+			paragrafText = "";
+
+			req = req.concat(addRequestIndex(quote.request, paraFlush, requestIndex));
+			linkReferences = linkReferences.concat(quote.links);
+			pointer = quote.nextPointer;
 			continue;
 		}
 
 		const fenced = fencedCodeBlock(arg);
 		if(fenced !== null){
-			
+			const paraFlush = paragrafFlush(paragrafText, requestIndex);
+			req = req.concat(paraFlush);
+			paragrafText = "";
+
+			req = req.concat(addRequestIndex(fenced.request, paraFlush, requestIndex));
+			pointer = fenced.nextPointer;
 			continue;
 		}
 
 		const atx = atxHeading(arg);
 		if(atx !== null){
-			
+			const paraFlush = paragrafFlush(paragrafText, requestIndex);
+			req = req.concat(paraFlush);
+			paragrafText = "";
+
+			req = req.concat(addRequestIndex(atx.request, paraFlush, requestIndex));
+			pointer = atx.nextPointer;
 			continue;
 		}
-			
-		if(paragrafText !== ""){
-			paragrafText += " ";
+		
+		if(isEmptyLine(markdown, pointer)){
+			req = req.concat(paragrafFlush(paragrafText, requestIndex));
+			paragrafText = "";
+			pointer = nextLine(markdown, pointer);
+			continue;
 		}
-		paragrafText += getTextInLine(markdown, pointer).trim();
-		pointer = nextLine(markdown, pointer);
 
-		// var newLines = isNewLineChar();
-		// if(0 > newLines){
-		// 	//add new line
-		// 	pointer += newLines;
-		// 	startLine = pointer;
-		// }
+		paragrafText += getTextInLine(markdown, pointer).trim() + "\n";
+		pointer = nextLine(markdown, pointer);
 	}
 
-	req.push({
-		insertText: {
-			endOfSegmentLocation: {},
-			text: markdown
-		}
-	});
+	// let i = 1;
+	// req.forEach(request => {
+	// 	if(request.updateParagraphStyle === undefined){
+	// 		return request;
+	// 	}
+
+	// 	if(request.updateParagraphStyle.range === undefined){
+	// 		return request;
+	// 	}
+		
+	// 	if(request.updateParagraphStyle.range.endIndex === null){
+	// 		return request;
+	// 	}
+		
+	// 	if(request.updateParagraphStyle.range.endIndex === undefined){
+	// 		return request;
+	// 	}
+		
+	// 	request.updateParagraphStyle.range.startIndex = i;
+	// 	i += request.updateParagraphStyle.range.endIndex;
+	// 	request.updateParagraphStyle.range.endIndex += request.updateParagraphStyle.range.startIndex;
+	// 	return request;
+	// });
 	return req;
 }
 
-class BlockArg {
-	constructor(markdown: string, pointer: number, paragraphBefore: string){
-		this._markdown = markdown;
-		this._pointer = pointer;
-		this._paragraphBefore = paragraphBefore;
+function paragrafFlush(text: string, reqIndex: number): docs_v1.Schema$Request[]{
+	if(text === ""){
+		return [];
 	}
-
-	private _markdown: string;
-	get markdown (){
-		return this._markdown;
-	};
-
-	private _pointer: number;
-	get pointer (){
-		return this._pointer;
-	};
-
-	private _paragraphBefore: string;
-	get paragraphBefore (){
-		return this._paragraphBefore;
-	};
+	return inlineText(text, reqIndex, 0, 0);
 }
 
-class BlockReturn {
-	request: docs_v1.Schema$Request[] = new Array<docs_v1.Schema$Request>();
-	nextPointer: number = -1;
-}
-
-function thematicBreak({ markdown, pointer}: BlockArg): null | BlockReturn {
+function thematicBreak({ markdown, pointer, reqIndex}: BlockArg): null | BlockReturn {
 	const spaces = spacesLength(markdown, pointer);
 	if(3 < spaces.totalSpace()){
 		return null;
@@ -176,15 +241,15 @@ function thematicBreak({ markdown, pointer}: BlockArg): null | BlockReturn {
 	}
 
 	const indexDelta = spaces.indexDelta() + chars[0].indexDelta();
-	if(isNewLineChar(markdown, pointer + indexDelta) !== 0 || markdown.length <= pointer + indexDelta){
-		//TODO: add thematic breaks to document 
+	if(isNewLineChar(markdown, pointer + indexDelta) !== 0 || markdown.length <= pointer + indexDelta){ 
 		const ret = new BlockReturn();
+		ret.nextPointer = nextLine(markdown, pointer);
 		return ret;
 	}
 	return null;
 }
 
-function atxHeading({ markdown, pointer}: BlockArg): null | BlockReturn {
+function atxHeading({ markdown, pointer, reqIndex }: BlockArg): null | BlockReturn {
 	const spaces = spacesLength(markdown, pointer);
 	if(3 < spaces.totalSpace()){
 		return null;
@@ -199,12 +264,12 @@ function atxHeading({ markdown, pointer}: BlockArg): null | BlockReturn {
 	indexDelta += titleHashtags.chars;
 
 	const afterSpaces = spacesLength(markdown, pointer + indexDelta);
-	if(afterSpaces.indexDelta() === 0 && isNewLineChar(markdown, pointer + indexDelta) !== 0){
+	if(afterSpaces.indexDelta() === 0 && isNewLineChar(markdown, pointer + indexDelta) === 0){
 		return null;
 	}
 	indexDelta += afterSpaces.indexDelta();
 
-	let text = getTextInLine(markdown, pointer).slice(pointer + indexDelta);
+	let text = getTextInLine(markdown, pointer).slice(indexDelta);
 	text = text.trimEnd();
 
 	let i = text.length - 1;
@@ -217,22 +282,23 @@ function atxHeading({ markdown, pointer}: BlockArg): null | BlockReturn {
 		}
 		if(text[i] === "\\" && hashTagRemove !== 0){
 			hashTagRemove = 0;
-			//break;
+			break;
 		}
 		if(text[i] !== " " && text[i] !== "\t"){
 			hashTagRemove = 0;
 		}
 		break;
 	}
-	text.slice(0, text.length - hashTagRemove).trimEnd();
+	text = text.slice(0, text.length - hashTagRemove).trimEnd() + "\n";
 
-	// TODO: add title to document
 	const ret = new BlockReturn();
+	ret.request = inlineText(text, reqIndex, 0 , titleHashtags.chars);
+	ret.nextPointer = nextLine(markdown, pointer);
 	return ret;
 
 }
 
-function setextHeading({ markdown, pointer, paragraphBefore }: BlockArg): null | BlockReturn {
+function setextHeading({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | BlockReturn {
 	if(paragraphBefore === ""){
 		return null;
 	}
@@ -245,22 +311,24 @@ function setextHeading({ markdown, pointer, paragraphBefore }: BlockArg): null |
 
 	const equelTitle = charRepeatLenght(markdown, pointer, "=");
 	if(equelTitle.chars !== 0 && isEmptyLine(markdown, pointer + equelTitle.indexDelta()) !== 0){
-		// TODO: inpliment h1 titel
 		const ret = new BlockReturn();
+		ret.request = inlineText(paragraphBefore, reqIndex, 0, 1);
+	    ret.nextPointer = nextLine(markdown, pointer);
 		return ret;
 	}
 
 	const hyphenTitle = charRepeatLenght(markdown, pointer, "=");
 	if(hyphenTitle.chars !== 0 && isEmptyLine(markdown, pointer + hyphenTitle.indexDelta()) !== 0){
-		// TODO: inpliment h2 titel
 		const ret = new BlockReturn();
+		ret.request = inlineText(paragraphBefore, reqIndex, 0, 2);
+	    ret.nextPointer = nextLine(markdown, pointer);
 		return ret;
 	}
 
 	return null;
 }
 
-function indentedCodeBlock({ markdown, pointer, paragraphBefore }: BlockArg): null | BlockReturn {
+function indentedCodeBlock({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | BlockReturn {
 	if(paragraphBefore !== ""){
 		return null;
 	}
@@ -302,10 +370,12 @@ function indentedCodeBlock({ markdown, pointer, paragraphBefore }: BlockArg): nu
 	// TODO: add indented codeblock to document;
 
 	const ret = new BlockReturn();
+	ret.request = [];
+	ret.nextPointer = pointer;
 	return ret;
 }
 
-function fencedCodeBlock({ markdown, pointer }: BlockArg): null | BlockReturn {
+function fencedCodeBlock({ markdown, pointer, reqIndex }: BlockArg): null | BlockReturn {
 	const markerSpaces = spacesLength(markdown, pointer);
 	if(3 < markerSpaces.totalSpace()) {
 		return null;
@@ -373,42 +443,20 @@ function fencedCodeBlock({ markdown, pointer }: BlockArg): null | BlockReturn {
 	return ret;
 }
 
-function htmlBlock({ markdown, pointer, paragraphBefore }: BlockArg): null | BlockReturn {
+function htmlBlock({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | BlockReturn {
 	return null;
 	const ret = new BlockReturn();
 	return ret;
 }
 
-function linkReferenceDefinition({ markdown, pointer, paragraphBefore }: BlockArg): null | BlockReturn {
+function linkReferenceDefinition({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | BlockReturn {
 	
+	return null;
 	const ret = new BlockReturn();
 	return ret;
-	return null;
 }
 
-function paragraph({ markdown, pointer, paragraphBefore }: BlockArg): null | BlockReturn {
-	
-	const ret = new BlockReturn();
-	return ret;
-	return null;
-}
-
-function isParagraph({ markdown, pointer, paragraphBefore }: BlockArg): boolean {
-	const arg = new BlockArg(markdown, pointer, paragraphBefore);
-	const blocks = [
-		setextHeading(arg),
-		thematicBreak(arg), 
-		bulletList(arg),
-		orderedList(arg),
-		indentedCodeBlock(arg),
-		blockQuote(arg, markdown, pointer, 0),
-		fencedCodeBlock(arg),
-		atxHeading(arg)
-	];
-	return blocks.every(x => x === null);
-}
-
-function blockQuote({ markdown, pointer }: BlockArg, rawMarkdown: string, rawPointer: number, indentation: number): null | BlockReturn {
+function blockQuote({ markdown, pointer, reqIndex }: BlockArg, rawMarkdown: string, rawPointer: number, indentation: number): null | ContainerBlockReturn {
 	const spaces = spacesLength(markdown, pointer);
 	if(3 < spaces.totalSpace()){
 		return null;
@@ -418,15 +466,15 @@ function blockQuote({ markdown, pointer }: BlockArg, rawMarkdown: string, rawPoi
 		return null;
 	}
 	
-	const ret = new BlockReturn();
+	const ret = new ContainerBlockReturn();
 	let paragrafText = "";
 	while(true){
-		const rawArg = new BlockArg(rawMarkdown, rawPointer, "");
+		const rawArg = new BlockArg(rawMarkdown, rawPointer, "", reqIndex);
 		if(isBlockQuotesIndentation(rawArg, indentation)){
 			const text = makeBlockQuoteRequest(rawArg, indentation);
 			let index = 0;
 			while(index < text.length){
-				const arg = new BlockArg(text, index, paragrafText);
+				const arg = new BlockArg(text, index, paragrafText, reqIndex); // FIXME: change reqIndex
 		
 				const setext = setextHeading(arg); // FIXME: scoud no happe when its a list
 				if(setext !== null){
@@ -487,7 +535,7 @@ function blockQuote({ markdown, pointer }: BlockArg, rawMarkdown: string, rawPoi
 				}
 			}
 
-			const tArg = new BlockArg(getTextInLine(rawMarkdown, rawPointer).slice(remove), 0, "");
+			const tArg = new BlockArg(getTextInLine(rawMarkdown, rawPointer).slice(remove), 0, "", reqIndex); // FIXME: change reqIndex
 			const isParagraph = [
 				thematicBreak(tArg), 
 				bulletList(tArg),
@@ -545,7 +593,7 @@ function blockQuotesCharRemove({ markdown, pointer }: BlockArg, quotes: number) 
 function makeBlockQuoteRequest({ markdown, pointer }: BlockArg, quotes: number){
 	let text = "";
 	while(pointer < markdown.length){
-		let remove = blockQuotesCharRemove(new BlockArg(markdown, pointer, ""), quotes);
+		let remove = blockQuotesCharRemove(new BlockArg(markdown, pointer, "", NaN), quotes);
 		if(remove === 0){
 			return text;
 		}
@@ -556,10 +604,10 @@ function makeBlockQuoteRequest({ markdown, pointer }: BlockArg, quotes: number){
 	return text;
 }
 
-function bulletList({ markdown, pointer, paragraphBefore }: BlockArg): null | BlockReturn {
+function bulletList({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | ContainerBlockReturn {
 	const spaces = spacesLength(markdown, pointer);
 	// Bulletin list
-	const bulletListMarker = ["+", "-", "*"].find(x => markdown[pointer + spaces.indexDelta()]);
+	const bulletListMarker = ["+", "-", "*"].find(x => x === markdown[pointer + spaces.indexDelta()]);
 	if(bulletListMarker !== undefined && spaces.totalSpace() < 4){
 		let indentation = spaces.indexDelta() + 1;
 		const afterSpaces = spacesLength(markdown, pointer + indentation);
@@ -590,13 +638,13 @@ function bulletList({ markdown, pointer, paragraphBefore }: BlockArg): null | Bl
 			// TODO: add bullet list in document;
 			//continue;
 		}
+		const ret = new ContainerBlockReturn();
+		return ret;
 	}
-	const ret = new BlockReturn();
-	return ret;
 	return null;
 }
 
-function orderedList({ markdown, pointer, paragraphBefore }: BlockArg): null | BlockReturn {
+function orderedList({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | ContainerBlockReturn {
 	const spaces = spacesLength(markdown, pointer);
 	// orded list
 	const ordetRegex = new RegExp(/[1-9]{1,9}[\.\)]{1}/);
@@ -633,13 +681,13 @@ function orderedList({ markdown, pointer, paragraphBefore }: BlockArg): null | B
 			// TODO: add orded list in document;
 			//continue;
 		}
+		const ret = new ContainerBlockReturn();
+		return ret;
 	}
-	const ret = new BlockReturn();
-	return ret;
 	return null;
 }
 
-function inlineText(text: string, indentation: number, headerType : number): docs_v1.Schema$Request[]{
+function inlineText(text: string, reqIndex: number, indentation: number, headerType : number): docs_v1.Schema$Request[]{
 	// https://googleapis.dev/nodejs/googleapis/latest/docs/interfaces/Schema$InsertTextRequest.html 
 
 	//if()
@@ -649,16 +697,17 @@ function inlineText(text: string, indentation: number, headerType : number): doc
 	var insertText: docs_v1.Schema$InsertTextRequest = {
 		text: text,
 		location: {
-			index: 0
+			index: reqIndex
 		}
 	};
 
 	paragrafStyle.range = {
-		startIndex: 0,
-		endIndex: text.length
+		startIndex: reqIndex,
+		endIndex: reqIndex + text.length
 	};
 
-	ret.push({updateParagraphStyle: paragrafStyle}, {insertText: insertText});
+	// ret.push({insertText: insertText});
+	ret.push({insertText: insertText}, {updateParagraphStyle: paragrafStyle});
 
 	return ret;
 
@@ -676,7 +725,7 @@ function inlineText(text: string, indentation: number, headerType : number): doc
 
 function inlineParagrafStyle(indentation: number, heading : number){
 	const ret: docs_v1.Schema$UpdateParagraphStyleRequest = {
-		fields: "namedStyleType indentStart",
+		fields: "namedStyleType, indentStart",
 		paragraphStyle: {
 			indentStart: {
 				magnitude: indentation,
@@ -840,4 +889,61 @@ function charOwnLineInSection(markdown: string, startIndex: number, repChar : st
 		}
 	}
 	return {ret: false, amount: 0, nextLine: lastIndex};
+}
+
+function whitespaceChar(char: string){
+	if(char === " "){
+		return true;
+	}
+	if(char === "\t"){
+		return true;
+	}
+	return false;
+}
+
+function getLastRequestIndex(request: Array<docs_v1.Schema$Request>): number {
+	if(request.length === 0){
+		return 1;
+	}
+
+	for (let i = request.length - 1; 0 <= i; i--) {
+		const element = request[i];
+		if(!element.insertText){
+			continue;
+		}
+		if(!element.insertText.text){
+			continue;
+		}
+		if(!element.insertText.location){
+			continue;
+		}
+		if(!element.insertText.location.index){
+			continue;
+		}
+
+		return element.insertText.location.index + element.insertText.text.length;
+	}
+	return -1;
+}
+
+function addRequestIndex(newRequest: Array<docs_v1.Schema$Request>, paragrafRequest: Array<docs_v1.Schema$Request>, reqIndex: number): Array<docs_v1.Schema$Request> {
+	if(paragrafRequest.length === 0){
+		return newRequest;
+	}
+	
+	const shift = getLastRequestIndex(paragrafRequest) - reqIndex;
+	newRequest.forEach(x => {
+		if(x.insertText && x.insertText.location && x.insertText.location.index){
+			x.insertText.location.index += shift;
+		}
+
+		if(x.updateParagraphStyle && x.updateParagraphStyle.range){
+			if(x.updateParagraphStyle.range.startIndex && x.updateParagraphStyle.range.endIndex){
+				x.updateParagraphStyle.range.startIndex += shift;
+				x.updateParagraphStyle.range.endIndex += shift;
+			}
+		}
+	});
+
+	return newRequest;
 }

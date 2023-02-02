@@ -109,11 +109,21 @@ export async function markdownToDocs() {
 			docs = {documentId: newDocs.data.documentId as string, label: ""};
 		}
 
-		const req = await managers.docs.documents.batchUpdate({
-			documentId: docs.documentId,
-			requestBody: {
-				requests: markdownToGoogleDocsReq(editor.document.getText())
-			}
-		});
+		vscode.window.showInformationMessage("converting Markdown to Google Docs");
+
+		const req = markdownToGoogleDocsReq(editor.document.getText());
+
+		try {
+			const res = await managers.docs.documents.batchUpdate({
+				documentId: docs.documentId,
+				requestBody: {
+					requests: req
+				}
+			});
+			vscode.window.showInformationMessage("Done");
+		} catch (error) {
+			console.error(error);
+			vscode.window.showErrorMessage("Error from google");
+		}
 	}
 }
