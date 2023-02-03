@@ -86,6 +86,10 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 	let paragrafText = "";
 
 	while (pointer < docsLength){
+		if(pointer === -1){
+			throw new Error("pointer is getting set to -1 in converting. req.length " + req.length);
+			
+		}
 		if(pointer !== 0){
 			requestIndex = getLastRequestIndex(req);
 		}
@@ -118,7 +122,7 @@ export function markdownToGoogleDocsReq(markdown: string): docs_v1.Schema$Reques
 
 			req = req.concat(addRequestIndex(bullet.request, paraFlush, requestIndex));
 			linkReferences = linkReferences.concat(bullet.links);
-			pointer = bullet.nextPointer;
+			pointer = bullet.nextPointer; 
 			continue;
 		}
 
@@ -435,11 +439,11 @@ function fencedCodeBlock({ markdown, pointer, reqIndex }: BlockArg): null | Bloc
 	if(text[text.length -1 ] === "\n"){
 		text = text.slice(0, text.length - 1);
 	}
-	pointer = nextLine(markdown, i); // next line
 
 	// TODO: add fenced codeblock to document
 
 	const ret = new BlockReturn();
+	ret.nextPointer = nextLine(markdown, i);
 	return ret;
 }
 

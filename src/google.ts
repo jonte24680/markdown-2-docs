@@ -111,19 +111,18 @@ export async function markdownToDocs() {
 
 		vscode.window.showInformationMessage("converting Markdown to Google Docs");
 
-		const req = markdownToGoogleDocsReq(editor.document.getText());
-
 		try {
+			const req = markdownToGoogleDocsReq(editor.document.getText());
 			const res = await managers.docs.documents.batchUpdate({
 				documentId: docs.documentId,
 				requestBody: {
 					requests: req
 				}
 			});
-			vscode.window.showInformationMessage("Done");
-		} catch (error) {
-			console.error(error);
-			vscode.window.showErrorMessage("Error from google");
+			vscode.window.showInformationMessage("Converted Sucessfully Markdown To Google Docs");
+		} catch (error: any) {
+			console.error(error.message);
+			vscode.window.showErrorMessage(error.message );
 		}
 	}
 }
