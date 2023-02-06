@@ -610,42 +610,61 @@ function makeBlockQuoteRequest({ markdown, pointer }: BlockArg, quotes: number){
 
 function bulletList({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | ContainerBlockReturn {
 	const spaces = spacesLength(markdown, pointer);
-	// Bulletin list
-	const bulletListMarker = ["+", "-", "*"].find(x => x === markdown[pointer + spaces.indexDelta()]);
-	if(bulletListMarker !== undefined && spaces.totalSpace() < 4){
-		let indentation = spaces.indexDelta() + 1;
-		const afterSpaces = spacesLength(markdown, pointer + indentation);
-
-		if(afterSpaces.indexDelta() !== 0 || isEmptyLine(markdown, pointer + indentation) !== 0){ // FIXME: questenebel
-			indentation += 1;
-			if(afterSpaces.totalSpace() <= 5){
-				indentation += afterSpaces.indexDelta() - 1;
-			}
-
-			let text = getTextInLine(markdown, pointer).slice(indentation) + "\n";
-			let index = pointer;
-			while (true){
-				index = nextLine(markdown, index);
-				if(isEmptyLine(markdown, index) !== 0){
-					text += "\n";
-					continue;
-				}
-
-				const spaces = spacesLength(markdown, index);
-				if(spaces.totalSpace() >= indentation){
-					text += getTextInLine(markdown, index).slice(indentation) + "\n";
-					continue;
-				}
-				break;
-			}
-			pointer = nextLine(markdown, index); //next pointer
-			// TODO: add bullet list in document;
-			//continue;
-		}
-		const ret = new ContainerBlockReturn();
-		return ret;
+	if(spaces.totalSpace() > 3){
+		return null;
 	}
-	return null;
+	
+	const bulletListMarker = ["+", "-", "*"].find(x => x === markdown[pointer + spaces.indexDelta()]);
+	if(!bulletListMarker){
+		return null;
+	}
+
+	let indentation = spaces.indexDelta() + 1;
+	const afterSpaces = spacesLength(markdown, pointer + indentation);
+
+	if(3 < afterSpaces.totalSpace()){
+		indentation += 1;
+	} else {
+		// 0 1 2 3
+		if(afterSpaces.totalSpace() === 0){
+			if(isEmptyLine(markdown, pointer + indentation)){
+				indentation += 1;
+			} else {
+				return null;
+			}
+		} else {
+			indentation += afterSpaces.indexDelta();
+		}
+	}
+
+	indentation += 1;
+	if(afterSpaces.totalSpace() <= 5){
+		indentation += afterSpaces.indexDelta() - 1;
+	}
+
+	let text = getTextInLine(markdown, pointer).slice(indentation) + "\n";
+	let index = pointer;
+	while (true){ // TODO: Add lasy cotinue
+		index = nextLine(markdown, index);
+		if(isEmptyLine(markdown, index) !== 0){
+			text += "\n";
+			continue;
+		}
+
+		const spaces = spacesLength(markdown, index);
+		if(spaces.totalSpace() >= indentation){
+			text += getTextInLine(markdown, index).slice(indentation) + "\n";
+			continue;
+		}
+		break;
+	}
+	pointer = nextLine(markdown, index); //next pointer
+	// TODO: add bullet list in document;
+	//continue;
+
+	const ret = new ContainerBlockReturn();
+	ret.nextPointer = pointer;
+	return ret;
 }
 
 function orderedList({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | ContainerBlockReturn {
@@ -780,7 +799,7 @@ function isNewLineChar(markdown: string, index: number){
 	return 0;
 }
 
-function isEmptyLine(markdown: string, index: number){ // TODO: make invalid return -1
+function isEmptyLine(markdown: string, index: number){ // returt zero if not an empty line
 	const length = spacesLength(markdown, index).indexDelta();
 	const endCharacters = isNewLineChar(markdown, index + length);
 	if(endCharacters === 0){
