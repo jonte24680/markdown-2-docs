@@ -112,7 +112,7 @@ export async function markdownToDocs() {
 		vscode.window.showInformationMessage("converting Markdown to Google Docs");
 
 		try {
-			const req = markdownToGoogleDocsReq(editor.document.getText());
+			var req = markdownToGoogleDocsReq(editor.document.getText());
 			const res = await managers.docs.documents.batchUpdate({
 				documentId: docs.documentId,
 				requestBody: {
