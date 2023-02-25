@@ -617,27 +617,98 @@ function bulletList({ markdown, pointer, paragraphBefore, reqIndex, indented }: 
 		}
 	}
 	
-	const ret = new ContainerBlockReturn();
+	const ret = makeListRequest( markdown, nextLine(markdown, pointer),
+		indentation, indented, 
+		" ".repeat(indentation) + getTextInLine(markdown, pointer).slice(indentation)
+	);
 
-	// let text = getTextInLine(markdown, pointer).slice(indentation) + "\n";
-	let firstLine = " ".repeat(indentation) + getTextInLine(markdown, pointer).slice(indentation);
-	let index = nextLine(markdown, pointer);
+	ret.request.push({
+		createParagraphBullets: {
+			bulletPreset: listMarkerConverter(bulletListMarker),
+			range: {
+				startIndex: 1,
+				endIndex: getLastRequestIndex(ret.request)
+			}
+		}
+	});
+
+	ret.request = moveRequestIndex(ret.request, reqIndex - 1);
+	return ret;
+}
+
+function orderedList({ markdown, pointer, paragraphBefore, reqIndex, indented}: BlockArg): null | ContainerBlockReturn {
+	const spaces = spacesLength(markdown, pointer + indented);
+	
+		if(spaces.totalSpace() > 3){
+			return null;
+		}
+		let indentation = spaces.indexDelta() + indented;
+
+	const ordetRegex = new RegExp(/[1-9]{1,9}[\.\)]{1}/);
+	
+	const regResult = ordetRegex.exec(getTextInLine(markdown, pointer + indentation));
+	if(!regResult || ordetRegex.lastIndex !== 0){
+		return null;
+	}
+	const listMarker = regResult[0];
+	indentation += listMarker.length;
+
+	const afterSpaces = spacesLength(markdown, pointer + indentation);
+
+	if(3 < afterSpaces.totalSpace()){
+		indentation += 1;
+	} else {
+		// 0 1 2 3
+		if(afterSpaces.totalSpace() === 0){
+			if(isEmptyLine(markdown, pointer + indentation)){
+				indentation += 1;
+			} else {
+				return null;
+			}
+		} else {
+			indentation += afterSpaces.indexDelta();
+		}
+	}
+	
+	const ret = makeListRequest( markdown, nextLine(markdown, pointer),
+		indentation, indented, 
+		" ".repeat(indentation) + getTextInLine(markdown, pointer).slice(indentation)
+	);
+	
+	ret.request.push({
+		createParagraphBullets: {
+			bulletPreset: listMarkerConverter(listMarker[listMarker.length - 1]),
+			range: {
+				startIndex: 1,
+				endIndex: getLastRequestIndex(ret.request)
+			}
+		}
+	});
+
+	ret.request = moveRequestIndex(ret.request, reqIndex - 1);
+	return ret;
+}
+
+function makeListRequest(markdown: string, index: number, indentation: number, indented: number, firstLine: string){
+	//let firstLine = " ".repeat(indentation) + getTextInLine(markdown, pointer).slice(indentation);
+	//let index = nextLine(markdown, pointer);
+	const ret = new ContainerBlockReturn();
 	let paragrafText = "";
 	while (true){ // TODO: Add lasy cotinue
 		const list = listTextMaker(markdown, index, indentation - indented, indented, firstLine);
 		firstLine = "";
-
+		
 		if(list.innerMarkdownText !== ""){
 			const innerReq = convertMarkdown(list.innerMarkdownText, indentation, paragrafText);
 			ret.request = ret.request.concat(moveRequestIndex(innerReq.requests, getLastRequestIndex(ret.request)));
 			ret.links = ret.links.concat(innerReq.linkReferences);
 			index = list.nextPointer;
 			paragrafText = innerReq.extraText;
-
+			
 			//if() ?????
 			continue;
 		}
-
+		
 		if(isEmptyLine(markdown, index) !== 0){
 			ret.request.concat(paragrafFlush(paragrafText, getLastRequestIndex(ret.request)));
 			index = nextLine(markdown, index);
@@ -655,85 +726,16 @@ function bulletList({ markdown, pointer, paragraphBefore, reqIndex, indented }: 
 		}
 		break;
 	}
-	// TODO: add bullet list in document;
 	ret.request = ret.request.concat(paragrafFlush(paragrafText, getLastRequestIndex(ret.request)));
-	ret.request.push({
-		createParagraphBullets: {
-			bulletPreset: bulletListMarkerConverter(bulletListMarker),
-			range: {
-				startIndex: 1,
-				endIndex: getLastRequestIndex(ret.request)
-			}
-		}
-	});
-	ret.request = moveRequestIndex(ret.request, reqIndex - 1);
-	// ret.nextPointer = nextLine(markdown, index);
 	ret.nextPointer = index;
 	return ret;
-}
-
-function bulletListMarkerConverter(symbol: string){
-	//https://developers.google.com/docs/api/reference/rest/v1/documents/request#bulletglyphpreset
-	if(symbol === "*"){
-		return "BULLET_DISC_CIRCLE_SQUARE";
-	}
-	if(symbol === "+"){
-		return "BULLET_DIAMONDX_HOLLOWDIAMOND_SQUARE";
-	}
-	if(symbol === "-"){
-		return "BULLET_ARROW_DIAMOND_DISC";
-	}
-	return "BULLET_GLYPH_PRESET_UNSPECIFIED";
-}
-
-function orderedList({ markdown, pointer, paragraphBefore, reqIndex }: BlockArg): null | ContainerBlockReturn {
-	const spaces = spacesLength(markdown, pointer);
-	// orded list
-	const ordetRegex = new RegExp(/[1-9]{1,9}[\.\)]{1}/);
-	const text = getTextInLine(markdown, pointer);
-	const orded = ordetRegex.exec(text);
-	if(orded !== null && text.indexOf(orded[0]) === spaces.indexDelta() && spaces.totalSpace() < 4){
-		const ordedChar = orded[0][orded[0].length - 1];
-		let indentation = spaces.indexDelta() + 1;
-		const afterSpaces = spacesLength(markdown, pointer + indentation);
-
-		if(afterSpaces.indexDelta() !== 0 || isEmptyLine(markdown, pointer + indentation) !== 0){
-			indentation += 1;
-			if(afterSpaces.totalSpace() <= 5){
-				indentation += afterSpaces.indexDelta() - 1;
-			}
-
-			let text = getTextInLine(markdown, pointer).slice(indentation) + "\n";
-			let index = pointer;
-			while (true){
-				index = nextLine(markdown, index);
-				if(isEmptyLine(markdown, index) !== 0){
-					text += "\n";
-					continue;
-				}
-
-				const spaces = spacesLength(markdown, index);
-				if(spaces.totalSpace() >= indentation){
-					text += getTextInLine(markdown, index).slice(indentation) + "\n";
-					continue;
-				}
-				break;
-			}
-			pointer = nextLine(markdown, index);
-			// TODO: add orded list in document;
-			//continue;
-		}
-		const ret = new ContainerBlockReturn();
-		return ret;
-	}
-	return null;
 }
 
 function listTextMaker(markdown: string, pointer: number, removeSpace: number, indented: number, text: string){
 	while(pointer < markdown.length){
 		const space = spacesLength(markdown, pointer + indented);
 		if(space.totalSpace() < removeSpace && isEmptyLine(markdown, pointer + indented) === 0){
-			 break;
+			break;
 		}
 		if(text !== ""){
 			text += "\n";
@@ -758,6 +760,26 @@ function listParagraphContinuation(text: string, indented: number): boolean {
 		fencedCodeBlock(tArg),
 		atxHeading(tArg),
 	].every(x => x === null);
+}
+
+function listMarkerConverter(symbol: string){
+	//https://developers.google.com/docs/api/reference/rest/v1/documents/request#bulletglyphpreset
+	if(symbol === "*"){
+		return "BULLET_DISC_CIRCLE_SQUARE";
+	}
+	if(symbol === "+"){
+		return "BULLET_DIAMONDX_HOLLOWDIAMOND_SQUARE";
+	}
+	if(symbol === "-"){
+		return "BULLET_ARROW_DIAMOND_DISC";
+	}
+	if(symbol === "."){
+		return "NUMBERED_DECIMAL_ALPHA_ROMAN" ;
+	}
+	if(symbol === ")"){
+		return "NUMBERED_DECIMAL_ALPHA_ROMAN_PARENS";
+	}
+	return "BULLET_GLYPH_PRESET_UNSPECIFIED";
 }
 
 function inlineText(text: string, reqIndex: number, indentation: number, headerType : number): docs_v1.Schema$Request[]{
